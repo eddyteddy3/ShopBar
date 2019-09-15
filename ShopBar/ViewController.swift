@@ -14,11 +14,15 @@ class ViewController: UIViewController {
     @IBOutlet var nameTextField: UITextField!
     @IBOutlet var priceTextField: UITextField!
     
+    @IBOutlet var status: UILabel!
+    @IBOutlet var datePicker: UIDatePicker!
+    
     var managedContext: NSManagedObjectContext? //to obtain the reference of entity
     
     override func viewDidLoad() {
         super.viewDidLoad()
-        
+        status.text = ""
+        status.textColor = .red
         initPersistentContainer()
     }
     
@@ -45,17 +49,19 @@ class ViewController: UIViewController {
         //entity desciption to access the tables from ShopBar
         if let context = managedContext, let entityDesc = NSEntityDescription.entity(forEntityName: "Product", in: context) {
             let product = Product(entity: entityDesc, insertInto: managedContext)
-            
+            //this is the object for table to insert the record
             product.id += 1
             product.name = nameTextField.text
             product.price = Double(priceTextField.text!)!
+            product.dateOfPurchase = datePicker.date
             
             do {
-                try managedContext?.save()
+                try context.save()
                 nameTextField.text = ""
                 priceTextField.text = ""
-                
+                status.text = "Data saved!"
             } catch {
+                status.text = "Data not saved!"
                 print("Error saving data \(error.localizedDescription)")
             }
         }
@@ -63,6 +69,33 @@ class ViewController: UIViewController {
     }
     
     @IBAction func fetchRecord(_ sender: Any) {
+        if let entityDesc = NSEntityDescription.entity(forEntityName: "Product", in: managedContext!) {
+            let product = Product(entity: entityDesc, insertInto: managedContext)
+            
+            let request: NSFetchRequest<Product> = Product.fetchRequest()
+            request.entity = entityDesc
+            
+            if let name = nameTextField.text {
+                //defining the predicate to search for the matching results for given name
+                let pred = NSPredicate(format: "(name = %@)", name)
+                request.predicate = pred
+            }
+            
+            do {
+                var results = try managedContext?.fetch(request as! NSFetchRequest<NSFetchRequestResult>)
+                
+                if results!.count > 0 {
+                    let match = results![0] as! NSManagedObject
+                    
+                    nameTextField.text = match.value(forKey: "name") as? String
+                    priceTextField.text = match.value(forKey: "price") as? String
+                    status.text = "record found!"
+                }
+            } catch {
+                status.text = "Could not load"
+                print("Could load the record")
+            }
+        }
     }
     
 }
